@@ -131,15 +131,25 @@ class DQNEnv(Env):
                         #Adding the request and the links used to the history
                         self.ongoing_requests = np.append(self.ongoing_requests, [[self.n_request, t+d]], axis=0)
 
-                        self.valid_path_chosen += 1
                         valid = True
                         break
 
-            if not valid:
-                self.invalid_path_chosen += 1
         else:
-            self.no_path_chosen += 1
+            valid = True
+            #check if a path was possible but not taken
+            candPathIds = np.nonzero(self.sd_vs_path_bin_table[sd])[0]
+            numCandPaths_per_nodepair = candPathIds.size
+            for local_pathId in range(numCandPaths_per_nodepair): #0....K
+                pathId = candPathIds[local_pathId]
+                pathLinkIds = np.nonzero(self.link_vs_path_bin_table[:,pathId])[0]
+                for wavelengthId in range(self.numWavelengths):
+                    if np.sum(self.link_wavelength_state[pathLinkIds,wavelengthId]) == 0 :
+                        valid = False
+                        break
+                if not valid:
+                    break
 
+        self.update_stats(action, valid)
         reward = self.reward(action, self.actual_request, valid)
 
         self.n_request += 1
