@@ -3,6 +3,7 @@ from gym import Env, spaces
 import json
 import os
 from collections import namedtuple
+import matplotlib.pyplot as plt
 
 
 def categorical_sample(prob_n, np_random):
@@ -73,9 +74,12 @@ class DQNEnv(Env):
         self.actual_request = list()
         self.ongoing_requests = np.zeros((0,2))
 
-        self.valid_path_chosen = 0
-        self.invalid_path_chosen = 0
-        self.no_path_chosen = 0
+        #Statistics values
+
+        self.epoch_results = [0,0,0] #[accepted_requests,blocked_requests,skipped_requests]
+        self.global_results = []
+        self.epoch_actions = [0] * (1+self.numPaths_per_nodepair)
+        self.global_actions = []
 
     def reset(self):
         self.actual_trace = self.traces[self.next_trace%self.trace_number]
@@ -88,9 +92,13 @@ class DQNEnv(Env):
         # slef.x_data = np.zeros((self.numReqs, self.numLinks*self.numWavelengths + 3))
         self.link_wavelength_state = np.zeros((self.numLinks, self.numWavelengths))
 
-        self.valid_path_chosen = 0
-        self.invalid_path_chosen = 0
-        self.no_path_chosen = 0
+        if sum(self.epoch_results)!=0:
+            self.global_results.append(self.epoch_results)
+            self.epoch_results = [0,0,0]
+
+        if sum(self.epoch_actions)!=0:
+            self.global_actions.append(self.epoch_actions)
+            self.epoch_actions = [0,0,0,0]
 
         self.ongoing_requests = np.zeros((0,2))
 
@@ -107,10 +115,10 @@ class DQNEnv(Env):
         #Free previous path for which the according request is finished
         self.free_available_path(t)
 
-        valid = False
+        sd = int(n1 * self.numNodes + n2)
         if action:
+            valid = False
 
-            sd = int(n1 * self.numNodes + n2)
             chosen_path = action - 1
 
             #Retrieve available paths ids from n1 to n2
@@ -166,10 +174,7 @@ class DQNEnv(Env):
     def reward(self, action, request, valid):
 
         def basic_function(action, request, valid):
-            if action == 0:
-                return -1
-            else:
-                return (1 if valid else -1) * request[3]
+            return (1 if valid else -1) * request[3]
 
         def inverse_function(action, request, valid):
             if action == 0:
@@ -178,14 +183,11 @@ class DQNEnv(Env):
                 return (1 if valid else -1) * (1/request[3])
 
         def no_delay_function(action, request, valid):
-            if not action:
-                return 0
-            else:
-                return 1 if valid else -1
+            return 1 if valid else -1
 
         def no_delay_focused_function(action, request, valid):
             if not action:
-                return -1
+                return 0 if valid else -1
             else:
                 return 1 if valid else -3
 
@@ -198,11 +200,16 @@ class DQNEnv(Env):
 
         return transcript[self.reward_function](action, request, valid)
 
-        if self.reward_function=="basic":
-            return basic_function(action, request, valid)
+    def update_stats(self,action, valid):
+        self.epoch_actions[action]+=1
 
-        elif self.reward_function=="inverse":
-            return inverse_function(action, request, valid)
+        if valid:
+            if action:
+                self.epoch_results[0]+=1
+            else:
+                self.epoch_results[2]+=1
+        else:
+            self.epoch_results[1]+=1
 
     def get_path(self, start_node, end_node, action):
         path_idx = start_node * (self.numNodes-1) + end_node - (1 if end_node > start_node else 0)
@@ -233,9 +240,9 @@ class DQNEnv(Env):
 
     def get_info(self, valid):
         return {
-            "Number_of_request_skipped": self.no_path_chosen,
-             "Number_of_valid_response": self.valid_path_chosen,
-             "Number_of_invalid_response": self.invalid_path_chosen,
+            "Number_of_accepted_skipped": self.epoch_results[0],
+             "Number_of_blocked_response": self.epoch_results[1],
+             "Number_of_skipped_response": self.epoch_results[2],
              "is_success": valid
              }
 
@@ -268,3 +275,39 @@ class DQNEnv(Env):
     def load_topology(self, nodes=[10], degree=[5], netw_i=0):
         topology_path = f"Data_set/raw_data/{nodes[0]}node/{degree[0]}degree/{netw_i}_instance/"
         return json.load(open(topology_path+"topology.json"))
+
+    def display_stats(self):
+        fig, ax = plt.subplots(2,2, figsize=(10,10))
+
+        r = np.array(self.global_results)
+        a = np.array(self.global_actions)
+
+        n_epoch = self.next_trace - 2
+
+        labels = ["Accepted", "Blocked", "Skipped"]
+
+        ax[0][0].set_title("Results through epochs")
+        for i in range(3):
+            ax[0][0].plot(list(range(n_epoch)), r[:,i])
+        ax[0][0].legend(labels)
+
+        explode = tuple(0.1 if i==max(self.epoch_results) else 0 for i in self.epoch_results)
+
+        ax[0][1].set_title("Results for last epoch")
+        ax[0][1].pie(self.epoch_results, explode = explode, labels=labels, autopct='%1.1f%%', startangle=90)
+
+        labels = list(map(str, range(4)))
+        ax[1][0].set_title("Actions through epochs")
+        for i in range(4):
+            ax[1][0].plot(list(range(n_epoch)), a[:,i])
+        ax[1][0].legend(labels)
+
+        explode = tuple(0.1 if i==max(self.epoch_actions) else 0 for i in self.epoch_actions)
+
+        ax[1][1].set_title("Actions for last epoch")
+        ax[1][1].pie(self.epoch_actions, explode = explode, labels=labels, autopct='%1.1f%%', startangle=90)
+
+
+        plt.tight_layout()
+        print("Displaying stats")
+        plt.show()

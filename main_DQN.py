@@ -22,7 +22,7 @@ ap.add_argument("-d", "--degree", default=5)
 ap.add_argument("-w", "--wavelength", default=4)
 ap.add_argument("-c", "--clearlogs", default=True)
 ap.add_argument("-r", "--rewardfunction", default="basic")
-ap.add_argument("-l", "--pielogs", default=False)
+ap.add_argument("-s", "--stats", default=False)
 args = vars(ap.parse_args())
 
 def print_info(info):
@@ -30,27 +30,6 @@ def print_info(info):
         if a=="is_success": continue
         t=a.replace("_"," ")
         print(f"{t}: {b}")
-
-def render_info(info):
-    labels = [i for i in info if i!="is_success"]
-    data = [info[i] for i in labels]
-    labels = [x.replace("_", " ") for x in labels]
-
-    for a,b in zip(labels, data):
-        print(f"{a}: {b}")
-
-    explode = tuple(0.1 if i==max(data) else 0 for i in data)
-
-    #add colors
-    colors = ['#ff9999','#66b3ff','#99ff99']
-    fig1, ax1 = plt.subplots()
-    ax1.pie(data, explode=explode, labels=labels, colors=colors, autopct='%1.1f%%',
-            shadow=True, startangle=90)
-    # Equal aspect ratio ensures that pie is drawn as a circle
-    ax1.axis('equal')
-    plt.tight_layout()
-    plt.show()
-
 
 def main():
     log_folder="./logs"
@@ -103,7 +82,8 @@ def main():
         model_architecture = MlpPolicy
 
     model = DQN(model_architecture, env, verbose=1, tensorboard_log="./logs/")
-    model.learn(total_timesteps=25000)
+    model.learn(total_timesteps=50000)
+
 
     obs = env.reset()
 
@@ -116,7 +96,9 @@ def main():
         env.render()
 
     print("\nTest results:")
-    log_function = render_info if args["pielogs"]=="True" else print_info
-    log_function(info)
+    print_info(info)
+    if args["stats"] == "True":
+        env.display_stats()
+
 
 main()
