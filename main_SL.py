@@ -47,7 +47,7 @@ flags.DEFINE_boolean('batch_normalization', True, 'whether use batch_normalizati
 flags.DEFINE_string('modele_name', "foo", 'modele file name')
 flags.DEFINE_string('modele_short_name', "foo", 'modele short file name')
 
-### paras in NANE: neigh aggreg-based node embedding 
+### paras in NANE: neigh aggreg-based node embedding
 #flags.DEFINE_string('which_GS_use', 'LinearOperation',
 #                    'Matrixproduct.')  # using the matrix product or direct big weight matrix
 flags.DEFINE_string('aggregator', 'mean', 'aggregator function: mean , mean_out_in, gcn ,adj_masked_dense ')
@@ -67,11 +67,11 @@ flags.DEFINE_integer('save_every', 1, "How often to save training info.")
 flags.DEFINE_integer('state', 1, 'input data to the neural networks'
                                  '''
                                  0 is edge embedding state: L vectors + one N hot-vector,
-                                     where each link vector = [w_0 ... w_W vol]_l, 
+                                     where each link vector = [w_0 ... w_W vol]_l,
                                      where the N-hot vector is: vector(src) = - Vol; vector(dst) = + Vol
-                                 1 is node embedding state: N vectors, each node vector = [lw_0 ...lw_LW vol]_n, 
-                                     where vol > 0, if node = src; vol < 0, if node = dst 
-                                 
+                                 1 is node embedding state: N vectors, each node vector = [lw_0 ...lw_LW vol]_n,
+                                     where vol > 0, if node = src; vol < 0, if node = dst
+
                                  '''
                      )
 flags.DEFINE_boolean('is_shuffling', True, 'training set is shuffle at each epoch')
@@ -103,15 +103,15 @@ def main():
 #    trace_id = 0
     nbNetwork = 10
     traffic="uniform"
-        
-    topo_pathname = str(nodes[0]) + "node/" + str(degree[0]) + "degree/" + str(netw_i) + "_instance/"  
+
+    topo_pathname = str(nodes[0]) + "node/" + str(degree[0]) + "degree/" + str(netw_i) + "_instance/"
     traff_pathname = str(lpMat_i) + "_traff_matrix/" + str(int(maxUtilPerNodePair[0]*100)) + "_ut/"
     #trace_" + str(trace_id) + "/"
     newDS_pathname = topo_pathname + traff_pathname
     fullDSpathnme = FLAGS.dataset_path + "state_" +str(FLAGS.state) + "/" + newDS_pathname
     #algo_name = "ILP_oracle"
     algo_name = "RWA_SPF_FF"
-            
+
 #    #list_dsi = []
 #    # pour chaque taille de réseau (10,50,100,...)
 #    for nod in nodes:
@@ -125,9 +125,9 @@ def main():
     # Initialize session
     sess = tf.Session()
     K.set_session(sess)
-    
+
     maxNumNodes = max(nodes)
-    maxNumLinks = max(degree)*maxNumNodes    
+    maxNumLinks = max(degree)*maxNumNodes
     if (FLAGS.state == 0):
         STATE_SIZE = maxNumLinks*FLAGS.numWavelengths + maxNumNodes
     else:
@@ -139,10 +139,10 @@ def main():
     if FLAGS.which_nn_use == 'SL_FC_LinkToPath':
         NN = SL_FC_LinkToPath(STATE_SIZE)
     elif FLAGS.which_nn_use == 'NANE_LinkToPath':
-        NN = NANE_LinkToPath(STATE_SIZE, maxNumNodes, maxNumLinks)      
+        NN = NANE_LinkToPath(STATE_SIZE, maxNumNodes, maxNumLinks)
 #    elif FLAGS.which_nn_use == 'benchmarkLinkToPath':
 #         make_benchmarkLinkToPath(training_data, validation_data, testing_data, variable_writer)
-#   
+#
     print("NN run \n\n\n\n\n\n\n\n\n\n ")
     # Writer that allow to plot the loss and accuracy fonction in tensorboard
     merged = tf.summary.merge_all()
@@ -153,9 +153,9 @@ def main():
 
     variable_writer.flush()
     show_params()
-    
+
 def runSession(sess, NN, merged, variable_writer, pathname, algo_name):
-        
+
     i = 0
     itN = 0
     iterSave = 0
@@ -164,16 +164,16 @@ def runSession(sess, NN, merged, variable_writer, pathname, algo_name):
     trivialSol[0][1] = 1
 
     train_data, valid_data, test_data = loadData(pathname, algo_name)
-    
+
     # trainning data
 #    X_train = train_data["X"]
 #    Y_train = train_data["y"]
 #    topology = train_data["topology"]
 #        print(topology)
-#        print(len(topology))   
+#        print(len(topology))
 #    valid_data = valid_data
 #    test_data = test_data
-    
+
     # length of the training
 #    Training_length = len(X_train)
 
@@ -228,7 +228,7 @@ def runSession(sess, NN, merged, variable_writer, pathname, algo_name):
 
             epoch_val_costs.append(0)
             outs, loss, predictions = NN.train(sess, NN, Batch_X, Batch_Y, topology, merged, run_metadata)
-
+            print(predictions)
             if (it_batch + 1) % FLAGS.save_every == 0:
                 # itN = it_epoch * nbBatch * batchSize + (it_batch +1) * batchSize
                 NN.saveExtraData(itN, variable_writer, Batch_Y, loss, predictions)
@@ -251,7 +251,7 @@ def runSession(sess, NN, merged, variable_writer, pathname, algo_name):
     summary = tf.Summary()
     summary.value.add(tag='bm_accuracy_test', simple_value=bm_accuracy)
     variable_writer.add_summary(summary, itN)
-            
+
 def show_params():
     total = 0
     for v in tf.trainable_variables():
@@ -263,11 +263,11 @@ def show_params():
 
 
 def loadData(pathname, algo_name):
-    print("Loading data sets ...")    
+    print("Loading data sets ...")
     training_data = json.load(open(pathname + algo_name + "_train.json"))
     testing_data = json.load(open(pathname + algo_name + "_test.json"))
     valid_data = json.load(open(pathname + algo_name + "_valid.json"))
 
-    return training_data, valid_data, testing_data 
+    return training_data, valid_data, testing_data
 
 main()

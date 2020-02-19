@@ -8,9 +8,9 @@ import shutil
 import matplotlib.pyplot as plt
 
 from stable_baselines.common.vec_env import DummyVecEnv
-from stable_baselines.deepq.policies import MlpPolicy
+from stable_baselines.common.policies import MlpPolicy
 #from NANE_Model import NanePolicy
-from stable_baselines import DQN
+from stable_baselines import DQN, A2C
 
 from DQNEnv import DQNEnv
 
@@ -22,7 +22,7 @@ ap.add_argument("-d", "--degree", default=5)
 ap.add_argument("-w", "--wavelength", default=4)
 ap.add_argument("-c", "--clearlogs", default=True)
 ap.add_argument("-r", "--rewardfunction", default="basic")
-ap.add_argument("-s", "--stats", default=False)
+ap.add_argument("-s", "--stats", default=True)
 args = vars(ap.parse_args())
 
 def print_info(info):
@@ -57,7 +57,7 @@ def main():
     gen_state = 1
     numWavelengths = args["wavelength"]
 
-    reward_function = args["rewardfunction"]
+    reward_function = int(args["rewardfunction"])
 
     env = DQNEnv(
         nodes=nodes,
@@ -81,8 +81,8 @@ def main():
         print("Using Fully connected layers")
         model_architecture = MlpPolicy
 
-    model = DQN(model_architecture, env, verbose=1, tensorboard_log="./logs/")
-    model.learn(total_timesteps=50000)
+    model = A2C(model_architecture, env, verbose=1, tensorboard_log="./logs/")
+    model.learn(total_timesteps=500000)
 
 
     obs = env.reset()
@@ -95,10 +95,16 @@ def main():
 
         env.render()
 
+    env.reset()
+
     print("\nTest results:")
     print_info(info)
-    if args["stats"] == "True":
-        env.display_stats()
-
+    if args["stats"]:
+        print("Saving results")
+        h = env.get_history()
+        filename = f"n{nodes[0]}_d{degree[0]}_r{reward_function}_A2C.json"
+        with open(f"results/{filename}","w") as file:
+            file.write(json.dumps(h))
+        print("Results saved")
 
 main()

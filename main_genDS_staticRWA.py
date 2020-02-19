@@ -69,7 +69,7 @@ flags.DEFINE_integer('state', 1, 'input data to the neural networks'
                      )
 
 def main():
-    nodes_to_test = [10]
+    nodes_to_test = [20]
     #degrees_to_test = [3, 5, 8]
     degrees_to_test = [5]
     trafficType = 0 #Uniform traffic
@@ -124,8 +124,8 @@ def main():
                                 arrivalsList = load_dynTraffTrace(pathname, i)
                                 sol_pathname = pathTopology + str(lpMat_i) + "_traff_matrix/" + str(int(maxUtilPerNodePair*100)) + "_ut/trace_" + str(i) + "/"
 
-                                #RWA_SPF_FF(sol_pathname, topology, arrivalsList, FLAGS.numWavelengths)
-                                ILP_oracle(sol_pathname, topology, arrivalsList, FLAGS.numWavelengths, "file")
+                                RWA_SPF_FF(sol_pathname, topology, arrivalsList, FLAGS.numWavelengths)
+                                #ILP_oracle(sol_pathname, topology, arrivalsList, FLAGS.numWavelengths, "file")
         print('sols generated')
 
     #5) Generate final dataset
@@ -141,8 +141,8 @@ def main():
                     for lpMat_i in range(FLAGS.nb_random_matrices):
                         for maxUtilPerNodePair in maxUtilPerNodePair_to_test:
                             traff_pathname = str(lpMat_i) + "_traff_matrix/" + str(int(maxUtilPerNodePair*100)) + "_ut/"
-                            #algo_name = "RWA_SPF_FF"
-                            algo_name = "ILP_oracle"
+                            algo_name = "RWA_SPF_FF"
+                            #algo_name = "ILP_oracle"
                             newDS_folder = FLAGS.pathNewDataSet
                             newDS_pathname =  topo_pathname + traff_pathname
                             generateDatasets(FLAGS.nb_random_dynTraces, traff_pathname, pathTopology, algo_name, newDS_folder, newDS_pathname, topology)

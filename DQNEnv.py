@@ -5,26 +5,7 @@ import os
 from collections import namedtuple
 import matplotlib.pyplot as plt
 
-
-def categorical_sample(prob_n, np_random):
-    """
-    Sample from categorical distribution
-    Each row specifies class probabilities
-    """
-    prob_n = np.asarray(prob_n)
-    csprob_n = np.cumsum(prob_n)
-    return (csprob_n > np_random.rand()).argmax()
-
-class TraceLoader:
-    def __init__(self,pathname):
-        self.path_to_traces=pathname
-        self.trace_paths=os.listdir(pathname)
-
-    def __len__(self):
-        return len(self.trace_paths)
-
-    def __getitem__(self,i):
-        return np.array(json.load(open(self.path_to_traces+"/"+self.trace_paths[i])))
+from utils.trace_loader import TraceLoader
 
 class DQNEnv(Env):
 
@@ -174,28 +155,44 @@ class DQNEnv(Env):
     def reward(self, action, request, valid):
 
         def basic_function(action, request, valid):
-            return (1 if valid else -1) * request[3]
+            return (1 if valid else -1)
 
-        def inverse_function(action, request, valid):
+        def no_zero_penalty(action, request, valid):
+            if valid:
+                return 1
+            else:
+                if action:
+                    return -1
+                else:
+                    return 0
+
+        def refined_no_zero_penalty(action, request, valid):
+            if valid:
+                return 1
+            else:
+                if action:
+                    return -1
+                else:
+                    return 0
+
+        def delay_function(action, request, valid):
             if action == 0:
-                return -1
+                return 0 if valid else -1
+            else:
+                return (1 if valid else -1) * (request[3])
+
+        def inverse_delay_function(action, request, valid):
+            if action == 0:
+                return 0 if valid else -1
             else:
                 return (1 if valid else -1) * (1/request[3])
 
-        def no_delay_function(action, request, valid):
-            return 1 if valid else -1
-
-        def no_delay_focused_function(action, request, valid):
-            if not action:
-                return 0 if valid else -1
-            else:
-                return 1 if valid else -3
-
         transcript = {
-            "basic": basic_function,
-            "inverse": inverse_function,
-            "no_delay": no_delay_function,
-            "no_delay2": no_delay_focused_function
+            1 : basic_function,
+            2 : no_zero_penalty,
+            3 : refined_no_zero_penalty,
+            4 : delay_function,
+            5 : inverse_delay_function
         }
 
         return transcript[self.reward_function](action, request, valid)
@@ -203,8 +200,8 @@ class DQNEnv(Env):
     def update_stats(self,action, valid):
         self.epoch_actions[action]+=1
 
-        if valid:
-            if action:
+        if action:
+            if valid:
                 self.epoch_results[0]+=1
             else:
                 self.epoch_results[2]+=1
@@ -230,8 +227,8 @@ class DQNEnv(Env):
 
         start_matrix = np.zeros((self.numLinks,1))
         target_matrix = np.zeros((self.numLinks,1))
-        start_matrix[start_links,:]=1
-        target_matrix[target_links,:]=-1
+        start_matrix[start_links,:]=d
+        target_matrix[target_links,:]=-d
 
         req_info = np.hstack((start_matrix,target_matrix))
         obs = np.hstack((self.link_wavelength_state,req_info))
@@ -276,38 +273,5 @@ class DQNEnv(Env):
         topology_path = f"Data_set/raw_data/{nodes[0]}node/{degree[0]}degree/{netw_i}_instance/"
         return json.load(open(topology_path+"topology.json"))
 
-    def display_stats(self):
-        fig, ax = plt.subplots(2,2, figsize=(10,10))
-
-        r = np.array(self.global_results)
-        a = np.array(self.global_actions)
-
-        n_epoch = self.next_trace - 2
-
-        labels = ["Accepted", "Blocked", "Skipped"]
-
-        ax[0][0].set_title("Results through epochs")
-        for i in range(3):
-            ax[0][0].plot(list(range(n_epoch)), r[:,i])
-        ax[0][0].legend(labels)
-
-        explode = tuple(0.1 if i==max(self.epoch_results) else 0 for i in self.epoch_results)
-
-        ax[0][1].set_title("Results for last epoch")
-        ax[0][1].pie(self.epoch_results, explode = explode, labels=labels, autopct='%1.1f%%', startangle=90)
-
-        labels = list(map(str, range(4)))
-        ax[1][0].set_title("Actions through epochs")
-        for i in range(4):
-            ax[1][0].plot(list(range(n_epoch)), a[:,i])
-        ax[1][0].legend(labels)
-
-        explode = tuple(0.1 if i==max(self.epoch_actions) else 0 for i in self.epoch_actions)
-
-        ax[1][1].set_title("Actions for last epoch")
-        ax[1][1].pie(self.epoch_actions, explode = explode, labels=labels, autopct='%1.1f%%', startangle=90)
-
-
-        plt.tight_layout()
-        print("Displaying stats")
-        plt.show()
+    def get_history(self):
+        return {"results": self.global_results, "actions": self.global_actions }
